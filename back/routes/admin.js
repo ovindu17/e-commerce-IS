@@ -4,14 +4,9 @@ const { authenticateToken, requireAdmin } = require('../middleware/auth')
 const Order = require('../models/Order')
 const db = require('../config/database')
 
-// Apply authentication and admin check to all routes
 router.use(authenticateToken)
 router.use(requireAdmin)
 
-/**
- * GET /api/admin/orders
- * Get all orders with pagination and filtering (admin only)
- */
 router.get('/orders', async (req, res) => {
   try {
     const {
@@ -37,7 +32,6 @@ router.get('/orders', async (req, res) => {
     `
     const params = []
 
-    // Add filters
     if (status) {
       query += ` AND o.status = ?`
       params.push(status)
@@ -63,7 +57,6 @@ router.get('/orders', async (req, res) => {
 
     const [orders] = await db.execute(query, params)
 
-    // Get total count for pagination
     let countQuery = `SELECT COUNT(DISTINCT o.id) as total FROM orders o WHERE 1=1`
     const countParams = []
 
@@ -109,10 +102,6 @@ router.get('/orders', async (req, res) => {
   }
 })
 
-/**
- * GET /api/admin/orders/:id
- * Get detailed order information (admin only)
- */
 router.get('/orders/:id', async (req, res) => {
   try {
     const orderId = req.params.id
@@ -139,16 +128,11 @@ router.get('/orders/:id', async (req, res) => {
   }
 })
 
-/**
- * PUT /api/admin/orders/:id/status
- * Update order status (admin only)
- */
 router.put('/orders/:id/status', async (req, res) => {
   try {
     const orderId = req.params.id
     const { status, reason } = req.body
 
-    // Validate status
     const validStatuses = ['pending', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled']
     if (!validStatuses.includes(status)) {
       return res.status(400).json({
@@ -180,13 +164,8 @@ router.put('/orders/:id/status', async (req, res) => {
   }
 })
 
-/**
- * GET /api/admin/dashboard/stats
- * Get dashboard statistics (admin only)
- */
 router.get('/dashboard/stats', async (req, res) => {
   try {
-    // Get various statistics
     const [orderStats] = await db.execute(`
       SELECT 
         COUNT(*) as total_orders,
@@ -238,10 +217,6 @@ router.get('/dashboard/stats', async (req, res) => {
   }
 })
 
-/**
- * GET /api/admin/users
- * Get user statistics (admin only)
- */
 router.get('/users', async (req, res) => {
   try {
     const [users] = await db.execute(`
@@ -271,16 +246,11 @@ router.get('/users', async (req, res) => {
   }
 })
 
-/**
- * DELETE /api/admin/orders/:id
- * Delete order (admin only - use with caution)
- */
 router.delete('/orders/:id', async (req, res) => {
   try {
     const orderId = req.params.id
     const { reason } = req.body
 
-    // Check if order exists
     const order = await Order.getById(orderId)
     if (!order) {
       return res.status(404).json({
@@ -289,7 +259,6 @@ router.delete('/orders/:id', async (req, res) => {
       })
     }
 
-    // Only allow deletion of cancelled orders
     if (order.status !== 'cancelled') {
       return res.status(400).json({
         success: false,
@@ -301,13 +270,10 @@ router.delete('/orders/:id', async (req, res) => {
     try {
       await connection.beginTransaction()
 
-      // Delete order items first
       await connection.execute('DELETE FROM order_items WHERE order_id = ?', [orderId])
       
-      // Delete status history
       await connection.execute('DELETE FROM order_status_history WHERE order_id = ?', [orderId])
       
-      // Delete order
       await connection.execute('DELETE FROM orders WHERE id = ?', [orderId])
 
       await connection.commit()

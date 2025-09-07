@@ -5,7 +5,6 @@ const { body, validationResult } = require('express-validator')
 const Order = require('../models/Order')
 const db = require('../config/database')
 
-// Validation middleware for creating orders
 const validateOrderCreation = [
   body('customerInfo.name')
     .notEmpty()
@@ -67,7 +66,6 @@ const validateOrderCreation = [
     .withMessage('Valid quantity is required')
 ]
 
-// Handle validation errors
 const handleValidationErrors = (req, res, next) => {
   const errors = validationResult(req)
   if (!errors.isEmpty()) {
@@ -80,7 +78,6 @@ const handleValidationErrors = (req, res, next) => {
   next()
 }
 
-// POST /api/orders - Create new order
 router.post('/', authenticateToken, validateOrderCreation, handleValidationErrors, async (req, res) => {
   try {
     const userId = req.user.uid || req.user.id
@@ -94,7 +91,6 @@ router.post('/', authenticateToken, validateOrderCreation, handleValidationError
       customerNotes = ''
     } = req.body
     
-    // Validate cart items are not empty
     if (!cartItems || cartItems.length === 0) {
       return res.status(400).json({
         success: false,
@@ -102,7 +98,6 @@ router.post('/', authenticateToken, validateOrderCreation, handleValidationError
       })
     }
     
-    // Create order
     const order = await Order.create({
       userId,
       cartItems,
@@ -119,13 +114,11 @@ router.post('/', authenticateToken, validateOrderCreation, handleValidationError
       customerNotes
     })
     
-    // Clear user's cart after successful order creation
     try {
       await db.execute('DELETE FROM cart_items WHERE cart_id IN (SELECT id FROM user_carts WHERE user_id = ?)', [userId])
       await db.execute('UPDATE user_carts SET total_quantity = 0, total_amount = 0.00 WHERE user_id = ?', [userId])
     } catch (cartError) {
       console.error('Warning: Failed to clear cart after order creation:', cartError)
-      // Don't fail the order creation if cart clearing fails
     }
     
     res.status(201).json({
@@ -149,7 +142,6 @@ router.post('/', authenticateToken, validateOrderCreation, handleValidationError
   }
 })
 
-// GET /api/orders - Get user orders
 router.get('/', authenticateToken, async (req, res) => {
   try {
     const userId = req.user.uid || req.user.id
@@ -176,7 +168,6 @@ router.get('/', authenticateToken, async (req, res) => {
   }
 })
 
-// GET /api/orders/:id - Get specific order
 router.get('/:id', authenticateToken, async (req, res) => {
   try {
     const userId = req.user.uid || req.user.id
@@ -191,7 +182,6 @@ router.get('/:id', authenticateToken, async (req, res) => {
       })
     }
     
-    // Verify order belongs to user (or user is admin)
     if (order.user_id !== userId && !req.user.isAdmin) {
       return res.status(403).json({
         success: false,
@@ -213,14 +203,12 @@ router.get('/:id', authenticateToken, async (req, res) => {
   }
 })
 
-// PUT /api/orders/:id/cancel - Cancel order
 router.put('/:id/cancel', authenticateToken, async (req, res) => {
   try {
     const userId = req.user.uid || req.user.id
     const { id } = req.params
     const { reason = 'Cancelled by customer' } = req.body
     
-    // Verify order belongs to user
     const order = await Order.getById(id)
     if (!order) {
       return res.status(404).json({
@@ -259,7 +247,6 @@ router.put('/:id/cancel', authenticateToken, async (req, res) => {
   }
 })
 
-// GET /api/orders/stats/summary - Get order statistics for user
 router.get('/stats/summary', authenticateToken, async (req, res) => {
   try {
     const userId = req.user.uid || req.user.id
@@ -279,7 +266,6 @@ router.get('/stats/summary', authenticateToken, async (req, res) => {
   }
 })
 
-// PUT /api/orders/:id/status - Update order status (for future admin functionality)
 router.put('/:id/status', authenticateToken, [
   body('status')
     .isIn(['pending', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled'])
@@ -294,8 +280,6 @@ router.put('/:id/status', authenticateToken, [
     const { id } = req.params
     const { status, reason = '' } = req.body
     
-    // For now, only allow users to cancel their own orders
-    // In future, add admin role check here for other status updates
     if (status !== 'cancelled') {
       return res.status(403).json({
         success: false,

@@ -1,11 +1,6 @@
 const db = require('../config/database')
 
 class Order {
-  /**
-   * Create a new order from cart
-   * @param {Object} orderData - Order information
-   * @returns {Promise<Object>} Created order
-   */
   static async create(orderData) {
     const connection = await db.getConnection()
     
@@ -23,19 +18,16 @@ class Order {
         customerNotes = ''
       } = orderData
       
-      // Generate order number
       const [orderNumberResult] = await connection.execute('CALL GenerateOrderNumber(@order_number)')
       const [orderNumberRow] = await connection.execute('SELECT @order_number as order_number')
       const orderNumber = orderNumberRow[0].order_number
       
-      // Calculate totals
       const totalItems = cartItems.reduce((sum, item) => sum + item.quantity, 0)
       const subtotal = cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0)
-      const taxAmount = subtotal * 0.1 // 10% tax (configurable)
-      const shippingAmount = subtotal > 100 ? 0 : 15 // Free shipping over $100
+      const taxAmount = subtotal * 0.1
+      const shippingAmount = subtotal > 100 ? 0 : 15
       const totalAmount = subtotal + taxAmount + shippingAmount
       
-      // Create order with null checks for undefined values
       const [orderResult] = await connection.execute(`
         INSERT INTO orders (
           order_number, user_id, status, total_items, subtotal, tax_amount, 
@@ -71,7 +63,6 @@ class Order {
       
       const orderId = orderResult.insertId
       
-      // Create order items
       for (const item of cartItems) {
         await connection.execute(`
           INSERT INTO order_items (
@@ -90,7 +81,6 @@ class Order {
         ])
       }
       
-      // Create initial status history entry
       await connection.execute(`
         INSERT INTO order_status_history (order_id, old_status, new_status, changed_by, change_reason)
         VALUES (?, NULL, 'pending', ?, 'Order created')
@@ -98,7 +88,6 @@ class Order {
       
       await connection.commit()
       
-      // Return created order
       return await this.getById(orderId)
       
     } catch (error) {
@@ -109,11 +98,6 @@ class Order {
     }
   }
   
-  /**
-   * Get order by ID
-   * @param {number} orderId - Order ID
-   * @returns {Promise<Object|null>} Order details
-   */
   static async getById(orderId) {
     try {
       const [orderRows] = await db.execute(`
@@ -126,12 +110,10 @@ class Order {
       
       const order = orderRows[0]
       
-      // Get order items
       const [itemRows] = await db.execute(`
         SELECT * FROM order_items WHERE order_id = ? ORDER BY id
       `, [orderId])
       
-      // Get status history
       const [historyRows] = await db.execute(`
         SELECT * FROM order_status_history WHERE order_id = ? ORDER BY created_at DESC
       `, [orderId])
@@ -146,12 +128,6 @@ class Order {
     }
   }
   
-  /**
-   * Get orders by user ID
-   * @param {string} userId - User ID
-   * @param {Object} options - Query options (limit, offset, status)
-   * @returns {Promise<Array>} Orders list
-   */
   static async getByUserId(userId, options = {}) {
     try {
       const { limit = 20, offset = 0, status } = options
@@ -180,21 +156,12 @@ class Order {
     }
   }
   
-  /**
-   * Update order status
-   * @param {number} orderId - Order ID
-   * @param {string} newStatus - New status
-   * @param {string} changedBy - User ID who made the change
-   * @param {string} reason - Reason for change
-   * @returns {Promise<boolean>} Success
-   */
   static async updateStatus(orderId, newStatus, changedBy, reason = '') {
     const connection = await db.getConnection()
     
     try {
       await connection.beginTransaction()
       
-      // Get current status
       const [currentOrder] = await connection.execute(
         'SELECT status FROM orders WHERE id = ?', 
         [orderId]
@@ -208,14 +175,12 @@ class Order {
       
       if (oldStatus === newStatus) {
         await connection.rollback()
-        return false // No change needed
+        return false
       }
       
-      // Update order status
       let updateQuery = 'UPDATE orders SET status = ?, updated_at = CURRENT_TIMESTAMP'
       const updateParams = [newStatus, orderId]
       
-      // Set special timestamps for certain statuses
       if (newStatus === 'confirmed') {
         updateQuery += ', confirmed_at = CURRENT_TIMESTAMP'
       } else if (newStatus === 'shipped') {
@@ -228,7 +193,6 @@ class Order {
       
       await connection.execute(updateQuery, updateParams)
       
-      // Create status history entry
       await connection.execute(`
         INSERT INTO order_status_history (order_id, old_status, new_status, changed_by, change_reason)
         VALUES (?, ?, ?, ?, ?)
@@ -244,11 +208,6 @@ class Order {
     }
   }
   
-  /**
-   * Get order statistics for user
-   * @param {string} userId - User ID
-   * @returns {Promise<Object>} Order statistics
-   */
   static async getUserStats(userId) {
     try {
       const [stats] = await db.execute(`
@@ -270,16 +229,8 @@ class Order {
     }
   }
   
-  /**
-   * Cancel order
-   * @param {number} orderId - Order ID
-   * @param {string} cancelledBy - User ID who cancelled
-   * @param {string} reason - Cancellation reason
-   * @returns {Promise<boolean>} Success
-   */
   static async cancel(orderId, cancelledBy, reason = 'Cancelled by customer') {
     try {
-      // Only allow cancellation for pending or confirmed orders
       const [orderRows] = await db.execute(
         'SELECT status FROM orders WHERE id = ?', 
         [orderId]

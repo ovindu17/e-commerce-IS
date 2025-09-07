@@ -31,7 +31,6 @@ const AdminDashboard = () => {
   const [orders, setOrders] = useState([])
   const [selectedTab, setSelectedTab] = useState('overview')
   
-  // Filters and pagination
   const [filters, setFilters] = useState({
     status: '',
     search: '',

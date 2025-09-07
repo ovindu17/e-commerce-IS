@@ -4,17 +4,14 @@ const { authenticateToken, optionalAuth } = require('../middleware/auth')
 const { validateCartItem, handleValidationErrors, authLimiter } = require('../middleware/security')
 const db = require('../config/database')
 
-// Helper function to calculate cart totals
 const calculateCartTotals = (items) => {
   const totalQuantity = items.reduce((sum, item) => sum + item.quantity, 0)
   const totalAmount = items.reduce((sum, item) => sum + (item.product_price * item.quantity), 0)
   return { totalQuantity, totalAmount: parseFloat(totalAmount.toFixed(2)) }
 }
 
-// Helper function to get or create user cart
 const getOrCreateUserCart = async (userId) => {
   try {
-    // Check if cart exists
     const [existingCart] = await db.execute(
       'SELECT * FROM user_carts WHERE user_id = ? AND is_active = true',
       [userId]
@@ -24,7 +21,6 @@ const getOrCreateUserCart = async (userId) => {
       return existingCart[0]
     }
 
-    // Create new cart
     const [result] = await db.execute(
       'INSERT INTO user_carts (user_id, total_quantity, total_amount) VALUES (?, 0, 0.00)',
       [userId]
@@ -41,15 +37,12 @@ const getOrCreateUserCart = async (userId) => {
   }
 }
 
-// GET /api/cart - Get user cart
 router.get('/', authenticateToken, async (req, res) => {
   try {
     const userId = req.user.id || req.user.uid
     
-    // Get user cart
     const cart = await getOrCreateUserCart(userId)
     
-    // Get cart items
     const [items] = await db.execute(`
       SELECT 
         product_id as id,
@@ -82,13 +75,11 @@ router.get('/', authenticateToken, async (req, res) => {
   }
 })
 
-// POST /api/cart/items - Add item to cart
 router.post('/items', authLimiter, authenticateToken, validateCartItem, handleValidationErrors, async (req, res) => {
   try {
     const userId = req.user.id || req.user.uid
     const { productId, quantity, price } = req.body
     
-    // Validation is handled by middleware, but double-check critical fields
     if (!productId || quantity < 1 || price < 0) {
       return res.status(400).json({
         success: false,
@@ -98,8 +89,6 @@ router.post('/items', authLimiter, authenticateToken, validateCartItem, handleVa
 
     const cart = await getOrCreateUserCart(userId)
 
-    // Check if item already exists
-    // Use INSERT ... ON DUPLICATE KEY UPDATE to atomically handle add to cart
     await db.execute(
       `INSERT INTO cart_items (cart_id, product_id, product_name, product_price, product_image, quantity) 
        VALUES (?, ?, ?, ?, ?, 1)
@@ -112,7 +101,6 @@ router.post('/items', authLimiter, authenticateToken, validateCartItem, handleVa
       [cart.id, id, name, parseFloat(price), image || null]
     )
 
-    // Update cart totals
     const [allItems] = await db.execute(
       'SELECT quantity, product_price FROM cart_items WHERE cart_id = ?',
       [cart.id]
@@ -145,7 +133,6 @@ router.post('/items', authLimiter, authenticateToken, validateCartItem, handleVa
   }
 })
 
-// PUT /api/cart/items/:productId - Update item quantity
 router.put('/items/:productId', authenticateToken, async (req, res) => {
   try {
     const userId = req.user.id || req.user.uid
@@ -162,20 +149,17 @@ router.put('/items/:productId', authenticateToken, async (req, res) => {
     const cart = await getOrCreateUserCart(userId)
 
     if (quantity === 0) {
-      // Remove item
       await db.execute(
         'DELETE FROM cart_items WHERE cart_id = ? AND product_id = ?',
         [cart.id, productId]
       )
     } else {
-      // Update quantity
       await db.execute(
         'UPDATE cart_items SET quantity = ?, updated_at = CURRENT_TIMESTAMP WHERE cart_id = ? AND product_id = ?',
         [quantity, cart.id, productId]
       )
     }
 
-    // Update cart totals
     const [allItems] = await db.execute(
       'SELECT quantity, product_price FROM cart_items WHERE cart_id = ?',
       [cart.id]
@@ -208,7 +192,6 @@ router.put('/items/:productId', authenticateToken, async (req, res) => {
   }
 })
 
-// DELETE /api/cart/items/:productId - Remove item from cart
 router.delete('/items/:productId', authenticateToken, async (req, res) => {
   try {
     const userId = req.user.id || req.user.uid
@@ -221,7 +204,6 @@ router.delete('/items/:productId', authenticateToken, async (req, res) => {
       [cart.id, productId]
     )
 
-    // Update cart totals
     const [allItems] = await db.execute(
       'SELECT quantity, product_price FROM cart_items WHERE cart_id = ?',
       [cart.id]
@@ -253,16 +235,13 @@ router.delete('/items/:productId', authenticateToken, async (req, res) => {
   }
 })
 
-// DELETE /api/cart - Clear entire cart
 router.delete('/', authenticateToken, async (req, res) => {
   try {
     const userId = req.user.id || req.user.uid
     const cart = await getOrCreateUserCart(userId)
 
-    // Remove all items
     await db.execute('DELETE FROM cart_items WHERE cart_id = ?', [cart.id])
 
-    // Reset cart totals
     await db.execute(
       'UPDATE user_carts SET total_quantity = 0, total_amount = 0.00, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
       [cart.id]
@@ -286,7 +265,6 @@ router.delete('/', authenticateToken, async (req, res) => {
   }
 })
 
-// POST /api/cart/sync - Sync local cart to server (for login merge)
 router.post('/sync', authenticateToken, async (req, res) => {
   try {
     const userId = req.user.id || req.user.uid
@@ -301,25 +279,21 @@ router.post('/sync', authenticateToken, async (req, res) => {
 
     const cart = await getOrCreateUserCart(userId)
 
-    // Get existing server cart items
     const [serverItems] = await db.execute(
       'SELECT * FROM cart_items WHERE cart_id = ?',
       [cart.id]
     )
 
-    // Merge local cart items with server items
     for (const localItem of localCart.items) {
       const existingServerItem = serverItems.find(item => item.product_id === localItem.id)
       
       if (existingServerItem) {
-        // Keep the higher quantity
         const newQuantity = Math.max(existingServerItem.quantity, localItem.quantity)
         await db.execute(
           'UPDATE cart_items SET quantity = ?, updated_at = CURRENT_TIMESTAMP WHERE cart_id = ? AND product_id = ?',
           [newQuantity, cart.id, localItem.id]
         )
       } else {
-        // Add new item from local cart using INSERT ... ON DUPLICATE KEY UPDATE to prevent duplicates
         await db.execute(
           `INSERT INTO cart_items (cart_id, product_id, product_name, product_price, product_image, quantity) 
            VALUES (?, ?, ?, ?, ?, ?)
@@ -334,7 +308,6 @@ router.post('/sync', authenticateToken, async (req, res) => {
       }
     }
 
-    // Recalculate totals
     const [allItems] = await db.execute(
       'SELECT quantity, product_price FROM cart_items WHERE cart_id = ?',
       [cart.id]
@@ -347,7 +320,6 @@ router.post('/sync', authenticateToken, async (req, res) => {
       [totalQuantity, totalAmount, cart.id]
     )
 
-    // Return merged cart
     const [mergedItems] = await db.execute(`
       SELECT 
         product_id as id,

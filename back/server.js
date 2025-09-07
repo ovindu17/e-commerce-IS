@@ -2,7 +2,6 @@ const express = require('express')
 const cors = require('cors')
 require('dotenv').config()
 
-// Import security middleware
 const { 
   securityHeaders, 
   apiLimiter, 
@@ -20,28 +19,23 @@ const adminRoutes = require('./routes/admin')
 const app = express()
 const PORT = process.env.PORT || 3001
 
-// Security middleware (OWASP compliance)
-app.use(forceHttps) // Force HTTPS in production
-app.use(securityHeaders) // Security headers
-app.use(securityLogger) // Security logging
-app.use(cors(corsOptions)) // Secure CORS
-app.use(apiLimiter) // Rate limiting
+app.use(forceHttps)
+app.use(securityHeaders)
+app.use(securityLogger)
+app.use(cors(corsOptions))
+app.use(apiLimiter)
 
-// Body parsing middleware
-app.use(express.json({ limit: '10mb' })) // Limit payload size
+app.use(express.json({ limit: '10mb' }))
 app.use(express.urlencoded({ extended: true, limit: '10mb' }))
 
-// Disable x-powered-by header
 app.disable('x-powered-by')
 
-// Routes
 app.use('/api/products', productRoutes)
 app.use('/api/users', userRoutes)
 app.use('/api/cart', cartRoutes)
 app.use('/api/orders', orderRoutes)
 app.use('/api/admin', adminRoutes)
 
-// Health check route
 app.get('/health', (req, res) => {
   res.json({ 
     success: true, 
@@ -50,7 +44,6 @@ app.get('/health', (req, res) => {
   })
 })
 
-// Test API route to debug routing issues
 app.get('/api/test', (req, res) => {
   res.json({
     success: true,
@@ -62,9 +55,7 @@ app.get('/api/test', (req, res) => {
   })
 })
 
-// Error handling middleware
 app.use((err, req, res, next) => {
-  // Log security-relevant errors
   console.error('Server Error:', {
     timestamp: new Date().toISOString(),
     error: err.message,
@@ -75,7 +66,6 @@ app.use((err, req, res, next) => {
     userAgent: req.get('User-Agent')
   })
   
-  // CORS error handling
   if (err.message === 'Not allowed by CORS') {
     return res.status(403).json({
       success: false,
@@ -90,7 +80,6 @@ app.use((err, req, res, next) => {
   })
 })
 
-// 404 handler
 app.use( (req, res) => {
   res.status(404).json({
     success: false,
@@ -104,7 +93,6 @@ app.listen(PORT, async () => {
   console.log(`🔒 Security middleware enabled`)
   console.log(`🔑 Azure AD authentication configured`)
   
-  // Test database connection
   try {
     const db = require('./config/database')
     await db.execute('SELECT 1 as test')

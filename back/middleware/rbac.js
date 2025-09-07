@@ -1,6 +1,3 @@
-// Role-based access control middleware
-
-// Check if user has any of the required roles
 const checkRole = (allowedRoles = []) => {
   return (req, res, next) => {
     if (!req.user) {
@@ -10,7 +7,6 @@ const checkRole = (allowedRoles = []) => {
       })
     }
     
-    // If no roles specified, just check if user is authenticated
     if (allowedRoles.length === 0) {
       return next()
     }
@@ -35,7 +31,6 @@ const checkRole = (allowedRoles = []) => {
   }
 }
 
-// Check if user belongs to any of the required groups
 const checkGroup = (allowedGroups = []) => {
   return (req, res, next) => {
     if (!req.user) {
@@ -45,7 +40,6 @@ const checkGroup = (allowedGroups = []) => {
       })
     }
     
-    // If no groups specified, just check if user is authenticated
     if (allowedGroups.length === 0) {
       return next()
     }
@@ -65,7 +59,6 @@ const checkGroup = (allowedGroups = []) => {
   }
 }
 
-// Check if user is admin (has admin role or is in admin group)
 const requireAdmin = (req, res, next) => {
   if (!req.user) {
     return res.status(401).json({
@@ -98,7 +91,6 @@ const requireAdmin = (req, res, next) => {
   next()
 }
 
-// Check if user can access their own resource or is admin
 const checkOwnershipOrAdmin = (getUserIdFromParams = (req) => req.params.id) => {
   return (req, res, next) => {
     if (!req.user) {
@@ -111,12 +103,10 @@ const checkOwnershipOrAdmin = (getUserIdFromParams = (req) => req.params.id) => 
     const requestedUserId = getUserIdFromParams(req)
     const currentUserId = req.user.id || req.user.uid
     
-    // Check if user is accessing their own resource
     if (requestedUserId === currentUserId) {
       return next()
     }
     
-    // Check if user is admin
     const userRoles = req.user.roles || []
     const isAdmin = 
       userRoles.includes('admin') ||

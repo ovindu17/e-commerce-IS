@@ -11,12 +11,10 @@ const authenticateToken = async (req, res, next) => {
       })
     }
 
-    const token = authHeader.substring(7) // Remove 'Bearer ' prefix
+    const token = authHeader.substring(7)
     
-    // Verify the Azure AD access token
     const decodedToken = await verifyToken(token)
     
-    // Add user info to request object
     req.user = {
       id: decodedToken.sub || decodedToken.oid,
       uid: decodedToken.sub || decodedToken.oid,
@@ -38,7 +36,6 @@ const authenticateToken = async (req, res, next) => {
   }
 }
 
-// Optional authentication - doesn't fail if no token
 const optionalAuth = async (req, res, next) => {
   try {
     const authHeader = req.headers.authorization
@@ -60,12 +57,10 @@ const optionalAuth = async (req, res, next) => {
     
     next()
   } catch (error) {
-    // Continue without authentication if token is invalid
     next()
   }
 }
 
-// Admin-only authentication middleware
 const requireAdmin = (req, res, next) => {
   if (!req.user) {
     return res.status(401).json({
@@ -84,9 +79,7 @@ const requireAdmin = (req, res, next) => {
   next()
 }
 
-// Resource ownership check middleware
 const checkResourceOwnership = (req, res, next) => {
-  // This will be used by order routes to ensure users can only access their own orders
   req.resourceOwnership = {
     userId: req.user.id,
     isAdmin: req.user.isAdmin

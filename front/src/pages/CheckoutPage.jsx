@@ -33,9 +33,8 @@ const CheckoutPage = () => {
   const [loading, setLoading] = useState(false)
   const [userProfile, setUserProfile] = useState(null)
   const [profileLoading, setProfileLoading] = useState(true)
-  const [orderPlaced, setOrderPlaced] = useState(false) // Track if order was successfully placed
+  const [orderPlaced, setOrderPlaced] = useState(false)
   
-  // Form data - removed redundant customer info fields
   const [formData, setFormData] = useState({
     shippingAddress: {
       line1: '',
@@ -60,12 +59,10 @@ const CheckoutPage = () => {
   
   const [errors, setErrors] = useState({})
 
-  // Load user profile on mount
   useEffect(() => {
     loadUserProfile()
   }, [])
 
-  // Redirect if cart is empty (but not if order was just placed)
   useEffect(() => {
     if (!profileLoading && !orderPlaced && (!cart.items || cart.items.length === 0)) {
       navigate('/')
@@ -80,7 +77,6 @@ const CheckoutPage = () => {
       const profile = response.data
       setUserProfile(profile)
       
-      // Pre-fill shipping address with user profile country
       setFormData(prev => ({
         ...prev,
         shippingAddress: {
@@ -105,7 +101,6 @@ const CheckoutPage = () => {
       }
     }))
     
-    // Clear error when user starts typing
     if (errors[`${section}.${field}`]) {
       setErrors(prev => ({
         ...prev,
@@ -124,7 +119,6 @@ const CheckoutPage = () => {
   const validateForm = () => {
     const newErrors = {}
     
-    // Validate profile completeness (customer info from profile)
     if (!userProfile?.name?.trim()) {
       newErrors['profile.name'] = 'Please complete your profile name before checkout'
     }
@@ -132,7 +126,6 @@ const CheckoutPage = () => {
       newErrors['profile.contact_number'] = 'Please add your contact number in your profile before checkout'
     }
     
-    // Shipping address validation
     if (!formData.shippingAddress.line1.trim()) {
       newErrors['shippingAddress.line1'] = 'Address line 1 is required'
     }
@@ -143,7 +136,6 @@ const CheckoutPage = () => {
       newErrors['shippingAddress.country'] = 'Country is required'
     }
     
-    // Billing address validation (if different from shipping)
     if (!formData.sameAsShipping) {
       if (!formData.billingAddress.line1.trim()) {
         newErrors['billingAddress.line1'] = 'Billing address line 1 is required'
@@ -162,9 +154,9 @@ const CheckoutPage = () => {
 
   const calculateTotals = () => {
     const subtotal = cart.totalAmount || 0
-    const taxRate = 0.1 // 10% tax
+    const taxRate = 0.1
     const taxAmount = subtotal * taxRate
-    const shippingAmount = subtotal > 100 ? 0 : 15 // Free shipping over $100
+    const shippingAmount = subtotal > 100 ? 0 : 15
     const total = subtotal + taxAmount + shippingAmount
     
     return {
@@ -201,19 +193,14 @@ const CheckoutPage = () => {
       
       const response = await orderAPI.createOrder(orderData)
       
-      // Mark order as placed to prevent cart empty redirect
       setOrderPlaced(true)
       
-      // Clear cart from Redux store
       dispatch(clearCart())
       
-      // Show success message
       toast.success('Order placed successfully!')
       
-      // Small delay to ensure state updates are processed
       await new Promise(resolve => setTimeout(resolve, 500))
       
-      // Navigate to order confirmation with proper field mapping
       navigate('/order-confirmation', {
         state: {
           orderNumber: response.data.orderNumber,
@@ -222,13 +209,12 @@ const CheckoutPage = () => {
           status: response.data.status,
           createdAt: response.data.createdAt
         },
-        replace: true // Use replace to prevent back button issues
+        replace: true
       })
       
     } catch (error) {
       console.error('Order placement failed:', error)
       toast.error(error.message || 'Failed to place order. Please try again.')
-      // Reset orderPlaced flag on error so cart empty check works again
       setOrderPlaced(false)
     } finally {
       setLoading(false)
@@ -250,7 +236,6 @@ const CheckoutPage = () => {
   return (
     <ProtectedRoute>
       <div className="min-h-screen bg-gray-50">
-        {/* Header */}
         <header className="bg-white border-b border-gray-200">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
             <div className="flex items-center justify-between">
@@ -269,15 +254,12 @@ const CheckoutPage = () => {
           </div>
         </header>
 
-        {/* Main Content */}
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
             
-            {/* Checkout Form */}
             <div className="lg:col-span-8">
               <div className="space-y-8">
                 
-                {/* Profile Summary */}
                 <div className="bg-white rounded-2xl p-6 border border-gray-200">
                   <div className="flex items-center justify-between mb-6">
                     <div className="flex items-center gap-3">
@@ -350,7 +332,6 @@ const CheckoutPage = () => {
                   )}
                 </div>
 
-                {/* Shipping Address */}
                 <div className="bg-white rounded-2xl p-6 border border-gray-200">
                   <div className="flex items-center gap-3 mb-6">
                     <Truck size={24} className="text-gray-600" />
@@ -455,7 +436,6 @@ const CheckoutPage = () => {
                   </div>
                 </div>
 
-                {/* Payment Method */}
                 <div className="bg-white rounded-2xl p-6 border border-gray-200">
                   <div className="flex items-center gap-3 mb-6">
                     <CreditCard size={24} className="text-gray-600" />
@@ -495,7 +475,6 @@ const CheckoutPage = () => {
                   </div>
                 </div>
 
-                {/* Order Notes */}
                 <div className="bg-white rounded-2xl p-6 border border-gray-200">
                   <h2 className="text-xl font-semibold text-gray-900 mb-4">Order Notes (Optional)</h2>
                   <textarea
@@ -509,7 +488,6 @@ const CheckoutPage = () => {
               </div>
             </div>
 
-            {/* Order Summary */}
             <div className="lg:col-span-4">
               <div className="bg-white rounded-2xl p-6 border border-gray-200 sticky top-8">
                 <div className="flex items-center gap-3 mb-6">
@@ -517,7 +495,6 @@ const CheckoutPage = () => {
                   <h2 className="text-xl font-semibold text-gray-900">Order Summary</h2>
                 </div>
                 
-                {/* Cart Items */}
                 <div className="space-y-4 mb-6">
                   {cart.items?.map((item) => (
                     <div key={item.id} className="flex items-center gap-4">
@@ -539,7 +516,6 @@ const CheckoutPage = () => {
                   ))}
                 </div>
                 
-                {/* Order Totals */}
                 <div className="border-t border-gray-200 pt-6 space-y-3">
                   <div className="flex justify-between text-gray-600">
                     <span>Subtotal ({cart.totalQuantity} items)</span>
@@ -561,7 +537,6 @@ const CheckoutPage = () => {
                   </div>
                 </div>
                 
-                {/* Place Order Button */}
                 <div className="mt-8">
                   <Button
                     onClick={handlePlaceOrder}

@@ -3,13 +3,10 @@ const router = express.Router()
 const { authenticateToken } = require('../middleware/auth')
 const User = require('../models/User')
 
-// GET /api/users/profile - Get user profile
 router.get('/profile', authenticateToken, async (req, res) => {
   try {
-    // Try to get extended profile from database
     let dbUser = await User.getProfile(req.user.uid)
     
-    // If user doesn't exist in database, create base record
     if (!dbUser) {
       dbUser = await User.createUser({
         uid: req.user.uid,
@@ -20,7 +17,6 @@ router.get('/profile', authenticateToken, async (req, res) => {
       })
     }
     
-    // Combine Firebase token data with database data
     const user = {
       uid: req.user.uid,
       email: req.user.email || dbUser.email,
@@ -43,19 +39,16 @@ router.get('/profile', authenticateToken, async (req, res) => {
   }
 })
 
-// PUT /api/users/profile - Update user profile
 router.put('/profile', authenticateToken, async (req, res) => {
   try {
     const { name, contact_number, country } = req.body
     
-    // Update user profile in database
     const updatedUser = await User.updateProfile(req.user.uid, {
       name: name || req.user.name,
       contact_number,
       country
     })
     
-    // Return combined data
     const responseUser = {
       uid: req.user.uid,
       email: req.user.email,
@@ -79,7 +72,6 @@ router.put('/profile', authenticateToken, async (req, res) => {
   }
 })
 
-// GET /api/users/orders - Get user orders
 router.get('/orders', authenticateToken, async (req, res) => {
   try {
     const userId = req.user.uid || req.user.id
