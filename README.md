@@ -1,5 +1,8 @@
 # E-Commerce Application Setup Guide
 
+https://medium.com/@ovindupathirana554/building-a-secure-full-stack-e-commerce-application-my-development-journey-e76e19df0ab6
+
+
 Complete setup guide to run this full-stack e-commerce application from scratch.
 
 ## 📋 Table of Contents

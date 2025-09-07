@@ -2,7 +2,6 @@ const express = require('express')
 const router = express.Router()
 const Product = require('../models/Product')
 
-// GET /api/products/categories - Get all categories
 router.get('/categories', async (req, res) => {
   try {
     const categories = await Product.getCategories()
@@ -21,7 +20,6 @@ router.get('/categories', async (req, res) => {
   }
 })
 
-// GET /api/products - Get all products
 router.get('/', async (req, res) => {
   try {
     const { category } = req.query
@@ -48,7 +46,6 @@ router.get('/', async (req, res) => {
   }
 })
 
-// GET /api/products/:id - Get product by ID
 router.get('/:id', async (req, res) => {
   try {
     const { id } = req.params
@@ -75,7 +72,6 @@ router.get('/:id', async (req, res) => {
   }
 })
 
-// GET /api/products/category/:categoryId - Get products by category
 router.get('/category/:categoryId', async (req, res) => {
   try {
     const { categoryId } = req.params
@@ -96,7 +92,6 @@ router.get('/category/:categoryId', async (req, res) => {
   }
 })
 
-// GET /api/products/search/:term - Search products
 router.get('/search/:term', async (req, res) => {
   try {
     const { term } = req.params
